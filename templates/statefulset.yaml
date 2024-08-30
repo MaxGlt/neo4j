@@ -1,0 +1,74 @@
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: {{ include "neo4j.fullname" . }}
+  namespace: {{ .Release.Namespace }}
+  labels:
+    app: {{ include "neo4j.fullname" . }}
+spec:
+  serviceName: {{ include "neo4j.serviceName" . }}
+  replicas: {{ .Values.replicaCount }}
+  selector:
+    matchLabels:
+      app: {{ include "neo4j.fullname" . }}
+  template:
+    metadata:
+      namespace: {{ .Release.Namespace }}
+      labels:
+        app: {{ include "neo4j.fullname" . }}
+    spec:
+      enableServiceLinks: false
+      containers:
+      - name: neo4j
+        image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+        ports:
+        - containerPort: 7474
+          name: http
+        - containerPort: 7473
+          name: https
+        - containerPort: 7687
+          name: bolt
+        resources:
+          requests:
+            memory: {{ .Values.resources.requests.memory }}
+            cpu: {{ .Values.resources.requests.cpu }}
+          limits:
+            memory: {{ .Values.resources.limits.memory }}
+            cpu: {{ .Values.resources.limits.cpu }}
+        volumeMounts:
+        - mountPath: /conf
+          name: config
+        - mountPath: /ssl
+          name: certs
+        - mountPath: /data
+          name: data
+      volumes:
+      - name: config
+        configMap:
+          name: neo4j-config
+      - name: certs
+        secret:
+          secretName: {{ .Values.neo4j.certificatesSecret }}
+          items:
+            # Bolt
+            - key: tls.key
+              path: bolt/tls.key
+            - key: tls.crt
+              path: bolt/tls.crt
+            - key: tls.crt
+              path: bolt/trusted/tls.crt
+            # HTTPS
+            - key: tls.key
+              path: https/tls.key
+            - key: tls.crt
+              path: https/tls.crt
+            - key: tls.crt
+              path: https/trusted/tls.crt
+  volumeClaimTemplates:
+  - metadata:
+      name: data
+    spec:
+      accessModes: [ "ReadWriteOnce" ]
+      resources:
+        requests:
+          storage: {{ .Values.persistence.size }}

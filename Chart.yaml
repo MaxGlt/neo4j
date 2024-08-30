@@ -1,0 +1,27 @@
+apiVersion: v2
+name: neo4j
+description: A Helm chart for Neo4j
+
+type: application
+
+# Chart version
+version: 0.1.0
+
+# App version
+appVersion: "4.4.5"
+
+maintainers:
+  - name: MaxGlt
+
+home: https://neo4j.com
+sources:
+  - https://github.com/neo4j/neo4j
+
+keywords:
+  - graph
+  - database
+  - neo4j
+
+# Release Notes
+annotations:
+  category: Database

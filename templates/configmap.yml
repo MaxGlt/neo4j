@@ -1,0 +1,44 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: neo4j-config
+data:
+  neo4j.conf: |
+    # Accept non-local connections
+    server.default_listen_address=0.0.0.0
+
+    # Security
+    dbms.security.auth_enabled=true
+
+    # Bolt connector
+    server.bolt.enabled=true
+    server.bolt.tls_level=OPTIONAL
+    server.bolt.listen_address=:7687
+
+    # Bolt SSL configuration
+    dbms.ssl.policy.bolt.enabled=true
+    dbms.ssl.policy.bolt.base_directory=/ssl/bolt
+    dbms.ssl.policy.bolt.private_key=/ssl/bolt/tls.key
+    dbms.ssl.policy.bolt.public_certificate=/ssl/bolt/tls.crt
+    # ssl.policy.bolt.client_auth : NONE, OPTIONAL, REQUIRED
+    dbms.ssl.policy.bolt.client_auth=OPTIONAL
+
+    # HTTP connector
+    server.http.enabled=true
+    server.http.listen_address=:7474
+
+    # HTTPS connector
+    server.https.enabled=true
+    server.https.listen_address=:7473
+
+    # HTTPS SSL configuration
+    dbms.ssl.policy.https.enabled=true
+    dbms.ssl.policy.https.base_directory=/ssl/https
+    dbms.ssl.policy.https.private_key=/ssl/https/tls.key
+    dbms.ssl.policy.https.public_certificate=/ssl/https/tls.crt
+    # ssl.policy.https.client_auth : NONE, OPTIONAL, REQUIRED
+    dbms.ssl.policy.https.client_auth=OPTIONAL
+
+    # Additional security settings
+    dbms.security.procedures.unrestricted=apoc.*,algo.*
+    dbms.security.procedures.allowlist=apoc.*,algo.*

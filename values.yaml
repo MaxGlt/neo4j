@@ -1,0 +1,32 @@
+replicaCount: 1
+
+image:
+  repository: neo4j
+  tag: latest
+
+resources:
+  requests:
+    memory: "2Gi"
+    cpu: "500m"
+  limits:
+    memory: "4Gi"
+    cpu: "1"
+
+persistence:
+  enabled: true
+  size: 30Gi
+
+ingress:
+  enabled: false
+  annotations: {}
+  hosts: []
+  tls: []
+
+hpa:
+  enabled: true
+  minReplicas: 2
+  maxReplicas: 4
+  targetCPUUtilizationPercentage: 75
+
+neo4j:
+  certificatesSecret: neo4j-certs

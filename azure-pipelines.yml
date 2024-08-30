@@ -1,0 +1,85 @@
+trigger:
+- azure-pipelines
+
+pool:
+  name: 'BuildPool'
+
+variables:
+  helmProjectPath: 'NEO4J'
+
+steps:
+- task: DownloadSecureFile@1
+  name: downloadSSHKey
+  inputs:
+    secureFile: 'neo4j-key'
+
+- task: PowerShell@2
+  inputs:
+    targetType: 'inline'
+    script: |
+      # Show environment variables for debugging
+      Write-Host "Agent.TempDirectory: $env:Agent_TempDirectory"
+      Write-Host "Build.SourcesDirectory: $env:Build_SourcesDirectory"
+      Write-Host "downloadSSHKey.secureFilePath: $(downloadSSHKey.secureFilePath)"
+      Write-Host "HELM_PROJECT_PATH: $(helmProjectPath)"
+
+      # Define OpenSSH executable paths
+      $sshPath = "C:\Windows\System32\OpenSSH\ssh.exe"
+      $scpPath = "C:\Windows\System32\OpenSSH\scp.exe"
+      Write-Host "sshPath: $sshPath"
+      Write-Host "scpPath: $scpPath"
+
+      if (-Not (Test-Path $sshPath)) {
+        Write-Host "ssh.exe not found at $sshPath"
+        Exit 1
+      }
+
+      if (-Not (Test-Path $scpPath)) {
+        Write-Host "scp.exe not found at $scpPath"
+        Exit 1
+      }
+
+      # Path of downloaded private key file
+      $sshPrivateKeyPath = "$(downloadSSHKey.secureFilePath)"
+
+      # Show path for verification
+      Write-Host "SSH private key path: $sshPrivateKeyPath"
+
+      # Check the existence of the file
+      if (-Not (Test-Path $sshPrivateKeyPath)) {
+        Write-Host "The SSH private key file does not exist at the expected path."
+        Exit 1
+      }
+
+      # Set private key permissions so that only the current user can access it
+      Write-Host "Setting permissions on the SSH private key file"
+      icacls $sshPrivateKeyPath /inheritance:r
+      icacls $sshPrivateKeyPath /grant:r "$($env:USERNAME):F"
+      icacls $sshPrivateKeyPath /remove "Authenticated Users"
+
+      # Build the Helm project path
+      $helmProjectPath = Join-Path -Path $env:Build_SourcesDirectory -ChildPath $(helmProjectPath)
+      Write-Host "Helm project path after Join-Path: $helmProjectPath"
+
+      # Check the existence of the directory on the Linux server
+      $sshCheckDirCommand = "& $sshPath -i $sshPrivateKeyPath -o StrictHostKeyChecking=no $env:REMOTE_USER@$env:REMOTE_HOST 'if [ ! -d /home/$($env:REMOTE_USER)/helm_project ]; then mkdir -p /home/$($env:REMOTE_USER)/helm_project; fi'"
+      Write-Host "SSH check and create directory command: $sshCheckDirCommand"
+      Invoke-Expression $sshCheckDirCommand
+
+      # Copy Helm files to Linux server
+      $scpCommand = "& $scpPath -i $sshPrivateKeyPath -o StrictHostKeyChecking=no -r `"$helmProjectPath\*`" $($env:REMOTE_USER)@$($env:REMOTE_HOST):/home/$($env:REMOTE_USER)/helm_project/"
+      Write-Host "SCP command: $scpCommand"
+      Invoke-Expression $scpCommand
+
+      # Create command to run Helm on Linux server
+      $remoteScriptPath = "/home/$($env:REMOTE_USER)/deploy_helm.sh"
+      $helmCommand = "$remoteScriptPath /home/$($env:REMOTE_USER)/helm_project"
+      Write-Host "Helm command: $helmCommand"
+      
+      $command = "& $sshPath -i $sshPrivateKeyPath -o StrictHostKeyChecking=no $env:REMOTE_USER@$env:REMOTE_HOST `"$helmCommand`""
+      Write-Host "Command to execute: $command"
+      
+      Invoke-Expression $command
+  env:
+    REMOTE_USER: $(remoteUser)
+    REMOTE_HOST: $(remoteHost)
